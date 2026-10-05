@@ -15,6 +15,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+Migrations/
 
 # Visual Studio
 .vs/

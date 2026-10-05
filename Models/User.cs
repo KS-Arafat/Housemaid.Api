@@ -1,18 +1,15 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Identity;
 
 namespace Housemaid.api.Models;
 
-public class User
+public class User : IdentityUser
 {
     public Guid UserId { get; set; }
-
-    public required string FullName { get; set; } = string.Empty;
-
-    public required string Email { get; set; } = string.Empty;
-
-    public string PasswordHash { get; set; } = string.Empty;
-
     public DateOnly CreatedAt { get; set; }
 
+    public Tenant Tenant { get; set; } = null!;
+    public List<Housing> Housings { get; set; } = [];
+    public List<Apartment> Apartments { get; set; } = [];
 }
