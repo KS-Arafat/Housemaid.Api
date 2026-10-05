@@ -1,12 +1,12 @@
 using Housemaid.api.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Housemaid.api.Data;
 
-public class AppDbContext(DbContextOptions options) : DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityUserContext<User, Guid>(options)
 {
 
-    public DbSet<User> Users => Set<User>();
     public DbSet<Apartment> Apartments => Set<Apartment>();
     public DbSet<Billing> Billings => Set<Billing>();
     public DbSet<Housing> Housings => Set<Housing>();
@@ -19,7 +19,6 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("users");
-            entity.HasKey(u => u.UserId);
 
             entity.Property(u => u.Email).IsRequired().HasMaxLength(30);
             entity.HasIndex(u => u.Email).IsUnique();
@@ -27,7 +26,6 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.CreatedAt).HasDefaultValueSql("now()");
 
-            entity.Ignore(u => u.Id);
             // entity.Ignore(u => u.LockoutEnd);
             // entity.Ignore(u => u.LockoutEnabled);
             // entity.Ignore(u => u.AccessFailedCount);
@@ -43,7 +41,7 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
             entity.ToTable("housings");
             entity.HasKey(h => h.HouseId);
             entity.HasIndex(h => h.OwnerId);
-            entity.HasOne(u => u.Owner).WithMany(u => u.Housings).HasForeignKey(h => h.OwnerId);
+            entity.HasOne(u => u.Owner).WithMany(u => u.Housings).HasForeignKey(h => h.OwnerId).HasPrincipalKey(u => u.Id);
             entity.HasMany(h => h.Tenants).WithOne(t => t.House).HasForeignKey(h => h.UserId);
 
             entity.Property(h => h.HouseName).HasMaxLength(100).IsRequired();
@@ -72,7 +70,7 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
             entity.ToTable("tenants");
             entity.HasKey(t => t.UserId);
 
-            entity.HasOne(t => t.User).WithOne(u => u.Tenant).HasForeignKey<Tenant>(t => t.UserId);
+            entity.HasOne(t => t.User).WithOne(u => u.Tenant).HasForeignKey<Tenant>(t => t.UserId).HasPrincipalKey<User>(u => u.Id);
         });
 
         modelBuilder.Entity<Billing>(entity =>

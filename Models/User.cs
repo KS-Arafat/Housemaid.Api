@@ -4,9 +4,8 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Housemaid.api.Models;
 
-public class User : IdentityUser
+public class User : IdentityUser<Guid>
 {
-    public Guid UserId { get; set; }
     public DateOnly CreatedAt { get; set; }
 
     public Tenant Tenant { get; set; } = null!;
