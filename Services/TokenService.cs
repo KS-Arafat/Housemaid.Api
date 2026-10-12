@@ -2,11 +2,14 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Housemaid.api.Constants;
 using Housemaid.api.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Housemaid.api.Services;
+
+
 
 public class TokenService(IConfiguration configuration) : ITokenService
 {
@@ -18,10 +21,10 @@ public class TokenService(IConfiguration configuration) : ITokenService
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.UserName ?? string.Empty)
+            new Claim(TokenClaimTypes.Sub, user.Id.ToString()),
+            new Claim(TokenClaimTypes.Email, user.Email ?? string.Empty),
+            new Claim(TokenClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(TokenClaimTypes.Name, user.UserName ?? string.Empty)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));

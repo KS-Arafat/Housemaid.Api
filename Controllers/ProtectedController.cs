@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Housemaid.api.Constants;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,9 +14,9 @@ public class ProtectedController : ControllerBase
     [HttpGet("me")]
     public ActionResult GetCurrentUser()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = User.FindFirstValue(TokenClaimTypes.NameIdentifier);
 
-        var email = User.FindFirstValue(ClaimTypes.Email);
+        var email = User.FindFirstValue(TokenClaimTypes.Email);
 
         var userName = User.Identity?.Name;
 
