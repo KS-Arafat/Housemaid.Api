@@ -12,7 +12,7 @@ public class Apartment
 {
     public Guid ApartmentId { get; set; }
     public Guid HouseId { get; set; }
-    public Guid TenantId { get; set; }
+    public Guid? TenantId { get; set; }
 
     public string UnitNo { get; set; } = string.Empty;
     public int Floor { get; set; }
@@ -23,6 +23,6 @@ public class Apartment
     public string? Details { get; set; }
 
     public Housing House { get; set; } = null!;
-    public Tenant Tenant { get; set; } = null!;
+    public Tenant? Tenant { get; set; }
     public List<Billing> Billings { get; set; } = [];
 }

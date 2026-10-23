@@ -71,15 +71,12 @@ public class BuildingController(AppDbContext dbContext) : ControllerBase
         }
     }
 
-    [HttpPut("update-build")]
-    public async Task<ActionResult> UpdateBuildDetails([FromBody] UpdateBuildDto req)
+    [HttpPut("update-build/{houseId:guid}")]
+    public async Task<ActionResult> UpdateBuildDetails(Guid houseId, [FromBody] UpdateBuildDto req)
     {
         var userIdValue = User.FindFirstValue(TokenClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var userId))
             return Unauthorized("User is not valid.");
-
-        if (req.HouseId is not Guid houseId)
-            return ValidationProblem("A building ID is required.");
 
         if (req.HouseName is null && req.Address is null && req.City is null)
             return BadRequest("At least one building field must be provided.");
@@ -98,16 +95,13 @@ public class BuildingController(AppDbContext dbContext) : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("delete-build")]
-    public async Task<ActionResult> DeleteBuild([FromBody] DeleteBuildDto req)
+    [HttpDelete("delete-build/{houseId:guid}")]
+    public async Task<ActionResult> DeleteBuild(Guid houseId)
     {
 
         var userIdValue = User.FindFirstValue(TokenClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var userId))
             return Unauthorized("User is not valid.");
-
-        if (req.HouseId is not Guid houseId)
-            return ValidationProblem("A building ID is required.");
 
         var building = await dbContext.Housings.FirstOrDefaultAsync(housing => housing.HouseId == houseId && housing.OwnerId == userId);
         if (building is null)
