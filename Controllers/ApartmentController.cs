@@ -31,7 +31,23 @@ public class ApartmentController(AppDbContext dbContext) : ControllerBase
         if (building is null)
             return NotFound("Building Doesn't Exist");
 
-        var apartmentList = await dbContext.Apartments.Where(a => a.HouseId == houseId).ToListAsync();
+        var apartmentList = await dbContext.Apartments
+            .AsNoTracking()
+            .Where(apartment => apartment.HouseId == houseId)
+            .Select(apartment => new
+            {
+                apartment.ApartmentId,
+                apartment.HouseId,
+                apartment.TenantId,
+                apartment.UnitNo,
+                apartment.Floor,
+                apartment.Bedrooms,
+                apartment.Bathrooms,
+                apartment.Area,
+                apartment.Status,
+                apartment.Details
+            })
+            .ToListAsync();
 
         return Ok(apartmentList);
     }

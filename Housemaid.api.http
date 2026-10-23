@@ -1,6 +1,240 @@
-@api_HostAddress = http://localhost:5171
+@baseUrl = http://localhost:5171
+@ownerUserName = housemaid-owner
+@ownerEmail = test.owner@gmail.com
+@tenantUserName = housemaid-tenant
+@tenantEmail = test.tenant@gmail.com
+@password = Test123!
+@ownerToken = {{ownerLogin.response.body.$.token}}
+@tenantToken = {{tenantLogin.response.body.$.token}}
+@tenantUserId = {{tenantLogin.response.body.$.userId}}
+@houseId = {{createBuilding.response.body.$.houseId}}
+@apartmentId = {{addApartments.response.body.$[0].apartmentId}}
+@vacantApartmentId = {{addApartments.response.body.$[1].apartmentId}}
+@billingYear = 2026
+@billingMonth = 10
 
-GET {{api_HostAddress}}/weatherforecast/
+### Register the owner once. If already registered, skip to Owner login.
+# @name registerOwner
+POST {{baseUrl}}/api/User/register
+Content-Type: application/json
 Accept: application/json
 
-###
+{
+	"userName": "{{ownerUserName}}",
+	"email": "{{ownerEmail}}",
+	"password": "{{password}}"
+}
+
+### Log in as the apartment owner.
+# @name ownerLogin
+POST {{baseUrl}}/api/User/login
+Content-Type: application/json
+Accept: application/json
+
+{
+	"email": "{{ownerEmail}}",
+	"password": "{{password}}"
+}
+
+### Register the tenant once. If already registered, skip to Tenant login.
+# @name registerTenant
+POST {{baseUrl}}/api/User/register
+Content-Type: application/json
+Accept: application/json
+
+{
+	"userName": "{{tenantUserName}}",
+	"email": "{{tenantEmail}}",
+	"password": "{{password}}"
+}
+
+### Log in as the tenant.
+# @name tenantLogin
+POST {{baseUrl}}/api/User/login
+Content-Type: application/json
+Accept: application/json
+
+{
+	"email": "{{tenantEmail}}",
+	"password": "{{password}}"
+}
+
+### Validate the owner's bearer token.
+GET {{baseUrl}}/api/Protected/me
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+
+### List buildings for the owner.
+# @name listBuildings
+GET {{baseUrl}}/api/Building/my-builds
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+
+### Create a building; its houseId is reused by the apartment requests.
+# @name createBuilding
+POST {{baseUrl}}/api/Building/add-build
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+	"houseName": "HTTP test building",
+	"address": "123 Test Street",
+	"city": "Testville"
+}
+
+### Update the building created above.
+PUT {{baseUrl}}/api/Building/update-build/{{houseId}}
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+	"houseName": "Updated HTTP test building",
+	"address": "456 Example Street",
+	"city": "Testville"
+}
+
+### Add one apartment for billing and one vacant apartment for removal.
+# Status enum: 0 = Listed, 1 = Unlisted.
+# @name addApartments
+POST {{baseUrl}}/api/Apartment/apartment-add/{{houseId}}
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+Accept: application/json
+
+[
+	{
+		"unitNo": "HTTP-101",
+		"floor": 1,
+		"bedrooms": 2,
+		"bathrooms": 1,
+		"area": 72.5,
+		"status": 0,
+		"details": "Billing workflow test apartment"
+	},
+	{
+		"unitNo": "HTTP-102",
+		"floor": 1,
+		"bedrooms": 1,
+		"bathrooms": 1,
+		"area": 48.0,
+		"status": 0,
+		"details": "Vacant apartment removal test"
+	}
+]
+
+### List apartments in the created building.
+GET {{baseUrl}}/api/Apartment/apartment-list/{{houseId}}
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+
+### Assign the registered tenant to the first apartment.
+# @name assignTenant
+POST {{baseUrl}}/api/Apartment/assign-tenant/{{apartmentId}}
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+	"userId": "{{tenantUserId}}",
+	"startDate": "2026-10-01",
+	"deposit": 1000
+}
+
+### Create the October bill. PaymentStat enum: 0 = Paid, 1 = Partial, 2 = Unpaid.
+# @name createMonthlyBilling
+PUT {{baseUrl}}/api/Apartment/monthly-billing/{{apartmentId}}
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+	"year": {{billingYear}},
+	"month": {{billingMonth}},
+	"rent": 1200,
+	"electricity": 85.5,
+	"water": 34,
+	"others": 0,
+	"comments": "October rent and utilities",
+	"dueAt": "2026-10-31",
+	"paymentStat": 2,
+	"amountPaid": 0,
+	"paidAt": null
+}
+
+### Update the same month's bill to verify monthly upsert behavior.
+PUT {{baseUrl}}/api/Apartment/monthly-billing/{{apartmentId}}
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+	"year": {{billingYear}},
+	"month": {{billingMonth}},
+	"rent": 1200,
+	"electricity": 90,
+	"water": 34,
+	"others": 0,
+	"comments": "October utilities updated",
+	"dueAt": "2026-10-31",
+	"paymentStat": 1,
+	"amountPaid": 500,
+	"paidAt": null
+}
+
+### Get the tenant's current-month billing.
+GET {{baseUrl}}/api/Tenant/billing/current-month
+Authorization: Bearer {{tenantToken}}
+Accept: application/json
+
+### Get all billing history for the tenant.
+GET {{baseUrl}}/api/Tenant/billing
+Authorization: Bearer {{tenantToken}}
+Accept: application/json
+
+### Filter tenant billing by year and month.
+GET {{baseUrl}}/api/Tenant/billing?year={{billingYear}}&month={{billingMonth}}
+Authorization: Bearer {{tenantToken}}
+Accept: application/json
+
+### Filter tenant billing by year only.
+GET {{baseUrl}}/api/Tenant/billing?year={{billingYear}}
+Authorization: Bearer {{tenantToken}}
+Accept: application/json
+
+### Filter tenant billing by month across all years.
+GET {{baseUrl}}/api/Tenant/billing?month={{billingMonth}}
+Authorization: Bearer {{tenantToken}}
+Accept: application/json
+
+### Apartment removal should conflict while it has a tenant.
+DELETE {{baseUrl}}/api/Apartment/apartment-remove/{{apartmentId}}
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+
+### End the tenant's tenancy and free the apartment.
+DELETE {{baseUrl}}/api/Apartment/remove-tenant/{{apartmentId}}
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+
+### Billing history remains available to the former tenant.
+GET {{baseUrl}}/api/Tenant/billing
+Authorization: Bearer {{tenantToken}}
+Accept: application/json
+
+### Apartment removal should conflict while billing history exists.
+DELETE {{baseUrl}}/api/Apartment/apartment-remove/{{apartmentId}}
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+
+### Remove the vacant apartment with no billing history.
+DELETE {{baseUrl}}/api/Apartment/apartment-remove/{{vacantApartmentId}}
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+
+### Destructive cleanup: delete the test building and its dependent data.
+DELETE {{baseUrl}}/api/Building/delete-build/{{houseId}}
+Authorization: Bearer {{ownerToken}}
+Accept: application/json
+Accept: application/json
