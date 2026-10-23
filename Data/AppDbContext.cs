@@ -42,7 +42,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityUser
             entity.HasKey(h => h.HouseId);
             entity.HasIndex(h => h.OwnerId);
             entity.HasOne(u => u.Owner).WithMany(u => u.Housings).HasForeignKey(h => h.OwnerId).HasPrincipalKey(u => u.Id);
-            entity.HasMany(h => h.Tenants).WithOne(t => t.House).HasForeignKey(h => h.UserId);
+            entity.HasMany(h => h.Tenants).WithOne(t => t.House).HasForeignKey(t => t.HouseId);
 
             entity.Property(h => h.HouseName).HasMaxLength(100).IsRequired();
             entity.Property(h => h.Address).HasMaxLength(50).IsRequired();

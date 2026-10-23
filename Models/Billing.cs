@@ -23,7 +23,7 @@ public class Billing
     public decimal? AmountPaid { get; set; }
     public DateOnly IssuedAt { get; set; }
     public DateOnly DueAt { get; set; }
-    public DateOnly PaidAt { get; set; }
+    public DateOnly? PaidAt { get; set; }
 
 
     public Apartment Apartment { get; set; } = null!;

@@ -4,7 +4,7 @@ namespace Housemaid.api.Models;
 
 public class Tenant
 {
-    public Guid? UserId { get; set; }
+    public Guid UserId { get; set; }
     public Guid HouseId { get; set; }
     public Guid ApartmentId { get; set; }
     public DateOnly StartDate { get; set; }
