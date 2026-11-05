@@ -3,6 +3,7 @@ using Housemaid.api.Constants;
 using Housemaid.api.Data;
 using Housemaid.api.DTO;
 using Housemaid.api.Models;
+using Housemaid.api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,7 @@ namespace Housemaid.api.Controllers;
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [Route("api/[controller]")]
 [ApiController]
-public class BuildingController(AppDbContext dbContext) : ControllerBase
+public class BuildingController(AppDbContext dbContext, IPropertyAccessService propertyAccess) : ControllerBase
 {
     [HttpGet("my-builds")]
     public async Task<ActionResult> GetBuildingList()
@@ -81,8 +82,7 @@ public class BuildingController(AppDbContext dbContext) : ControllerBase
         if (req.HouseName is null && req.Address is null && req.City is null)
             return BadRequest("At least one building field must be provided.");
 
-        var building = await dbContext.Housings
-            .FirstOrDefaultAsync(housing => housing.HouseId == houseId && housing.OwnerId == userId);
+        var building = await propertyAccess.GetOwnedBuildingAsync(houseId, userId);
 
         if (building is null)
             return NotFound("Building not found.");
@@ -103,7 +103,7 @@ public class BuildingController(AppDbContext dbContext) : ControllerBase
         if (!Guid.TryParse(userIdValue, out var userId))
             return Unauthorized("User is not valid.");
 
-        var building = await dbContext.Housings.FirstOrDefaultAsync(housing => housing.HouseId == houseId && housing.OwnerId == userId);
+        var building = await propertyAccess.GetOwnedBuildingAsync(houseId, userId);
         if (building is null)
             return NotFound("Building Not Found");
 

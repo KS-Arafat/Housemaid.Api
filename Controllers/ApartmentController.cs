@@ -3,6 +3,7 @@ using Housemaid.api.Constants;
 using Housemaid.api.Data;
 using Housemaid.api.DTO;
 using Housemaid.api.Models;
+using Housemaid.api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -14,7 +15,7 @@ namespace Housemaid.api.Controllers;
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [Route("api/[controller]")]
 [ApiController]
-public class ApartmentController(AppDbContext dbContext) : ControllerBase
+public class ApartmentController(AppDbContext dbContext, IPropertyAccessService propertyAccess) : ControllerBase
 {
     [HttpGet("apartment-list/{houseId:Guid}")]
     public async Task<ActionResult> GetAllApartments(Guid houseId)
@@ -26,7 +27,7 @@ public class ApartmentController(AppDbContext dbContext) : ControllerBase
 
         var userId = Guid.Parse(userIdValue);
 
-        var building = await dbContext.Housings.FirstOrDefaultAsync(h => h.HouseId == houseId && h.OwnerId == userId);
+        var building = await propertyAccess.GetOwnedBuildingAsync(houseId, userId);
 
         if (building is null)
             return NotFound("Building Doesn't Exist");
@@ -62,8 +63,7 @@ public class ApartmentController(AppDbContext dbContext) : ControllerBase
         if (apartments.Count == 0)
             return BadRequest("At least one apartment must be provided.");
 
-        var buildingExists = await dbContext.Housings
-            .AnyAsync(h => h.HouseId == houseId && h.OwnerId == userId);
+        var buildingExists = await propertyAccess.OwnsBuildingAsync(houseId, userId);
 
         if (!buildingExists)
             return NotFound("Building not found.");
@@ -97,9 +97,7 @@ public class ApartmentController(AppDbContext dbContext) : ControllerBase
         if (!Guid.TryParse(userIdValue, out var ownerId))
             return Unauthorized("User is not valid.");
 
-        var apartment = await dbContext.Apartments
-            .Include(a => a.House)
-            .FirstOrDefaultAsync(a => a.ApartmentId == apartmentId && a.House.OwnerId == ownerId);
+        var apartment = await propertyAccess.GetOwnedApartmentAsync(apartmentId, ownerId);
 
         if (apartment is null)
             return NotFound("Apartment not found.");
@@ -147,10 +145,7 @@ public class ApartmentController(AppDbContext dbContext) : ControllerBase
         if (!Guid.TryParse(userIdValue, out var ownerId))
             return Unauthorized("User is not valid.");
 
-        var apartment = await dbContext.Apartments
-            .Include(a => a.House)
-            .Include(a => a.Tenant)
-            .FirstOrDefaultAsync(a => a.ApartmentId == apartmentId && a.House.OwnerId == ownerId);
+        var apartment = await propertyAccess.GetOwnedApartmentAsync(apartmentId, ownerId, includeTenant: true);
 
         if (apartment is null)
             return NotFound("Apartment not found.");
@@ -172,9 +167,7 @@ public class ApartmentController(AppDbContext dbContext) : ControllerBase
         if (!Guid.TryParse(userIdValue, out var ownerId))
             return Unauthorized("User is not valid.");
 
-        var apartment = await dbContext.Apartments
-            .Include(a => a.House)
-            .FirstOrDefaultAsync(a => a.ApartmentId == apartmentId && a.House.OwnerId == ownerId);
+        var apartment = await propertyAccess.GetOwnedApartmentAsync(apartmentId, ownerId);
 
         if (apartment is null)
             return NotFound("Apartment not found.");
@@ -201,9 +194,7 @@ public class ApartmentController(AppDbContext dbContext) : ControllerBase
         if (!Guid.TryParse(userIdValue, out var ownerId))
             return Unauthorized("User is not valid.");
 
-        var apartment = await dbContext.Apartments
-            .Include(a => a.House)
-            .FirstOrDefaultAsync(a => a.ApartmentId == apartmentId && a.House.OwnerId == ownerId);
+        var apartment = await propertyAccess.GetOwnedApartmentAsync(apartmentId, ownerId);
 
         if (apartment is null)
             return NotFound("Apartment not found.");

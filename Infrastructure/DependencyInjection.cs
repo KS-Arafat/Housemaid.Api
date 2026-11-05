@@ -1,4 +1,5 @@
 using Housemaid.api.Data;
+using Housemaid.api.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Housemaid.api.Infrastructure;
@@ -12,6 +13,7 @@ public static class DependencyInjection
             var conn = config.GetConnectionString("DummyDB") ?? throw new InvalidOperationException("Bad Connection string");
             options.UseNpgsql(conn, sql => sql.EnableRetryOnFailure(maxRetryCount: 3));
         });
+        services.AddScoped<IPropertyAccessService, PropertyAccessService>();
 
         return services;
     }
