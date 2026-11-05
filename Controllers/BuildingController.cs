@@ -2,10 +2,12 @@ using System.Security.Claims;
 using Housemaid.api.Constants;
 using Housemaid.api.Data;
 using Housemaid.api.DTO;
+using Housemaid.api.Infrastructure;
 using Housemaid.api.Models;
 using Housemaid.api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +17,10 @@ namespace Housemaid.api.Controllers;
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [Route("api/[controller]")]
 [ApiController]
-public class BuildingController(AppDbContext dbContext, IPropertyAccessService propertyAccess) : ControllerBase
+public class BuildingController(
+    AppDbContext dbContext,
+    IPropertyAccessService propertyAccess,
+    HybridCache cache) : ControllerBase
 {
     [HttpGet("my-builds")]
     public async Task<ActionResult> GetBuildingList()
@@ -24,17 +29,20 @@ public class BuildingController(AppDbContext dbContext, IPropertyAccessService p
         if (!Guid.TryParse(userIdValue, out var userId))
             return Unauthorized("User is not valid.");
 
-        var buildings = await dbContext.Housings
-            .Where(housing => housing.OwnerId == userId)
-            .Select(housing => new
-            {
-                housing.HouseId,
-                housing.HouseName,
-                housing.Address,
-                housing.City,
-                housing.CreatedAt
-            })
-            .ToListAsync();
+        var buildings = await cache.GetOrCreateAsync(
+            PropertyCacheTags.BuildingListKey(userId),
+            async cancellationToken => await dbContext.Housings
+                .AsNoTracking()
+                .Where(housing => housing.OwnerId == userId)
+                .Select(housing => new BuildingListItemDto(
+                    housing.HouseId,
+                    housing.HouseName,
+                    housing.Address,
+                    housing.City,
+                    housing.CreatedAt))
+                .ToListAsync(cancellationToken),
+            tags: [PropertyCacheTags.OwnerBuildings(userId)],
+            cancellationToken: HttpContext.RequestAborted);
 
         return Ok(buildings);
     }
@@ -60,6 +68,7 @@ public class BuildingController(AppDbContext dbContext, IPropertyAccessService p
         try
         {
             await dbContext.SaveChangesAsync();
+            await cache.RemoveByTagAsync(PropertyCacheTags.OwnerBuildings(userId), CancellationToken.None);
             return Ok(new
             {
                 newBuilding.HouseId
@@ -92,6 +101,7 @@ public class BuildingController(AppDbContext dbContext, IPropertyAccessService p
         building.City = req.City ?? building.City;
 
         await dbContext.SaveChangesAsync();
+        await cache.RemoveByTagAsync(PropertyCacheTags.OwnerBuildings(userId), CancellationToken.None);
         return NoContent();
     }
 
@@ -109,6 +119,8 @@ public class BuildingController(AppDbContext dbContext, IPropertyAccessService p
 
         dbContext.Housings.Remove(building);
         await dbContext.SaveChangesAsync();
+        await cache.RemoveByTagAsync(PropertyCacheTags.OwnerBuildings(userId), CancellationToken.None);
+        await cache.RemoveByTagAsync(PropertyCacheTags.OwnerApartments(userId), CancellationToken.None);
 
 
         return Ok();

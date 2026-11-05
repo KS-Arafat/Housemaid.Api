@@ -53,7 +53,7 @@ This is not database-per-tenant isolation or PostgreSQL row-level security. The 
 
 Prerequisites: .NET 10 SDK and PostgreSQL.
 
-1. Configure `ConnectionStrings:DummyDB` and the JWT `Key`, `Issuer`, and `Audience` values using local configuration or environment variables. Do not commit production secrets.
+1. Configure `ConnectionStrings:DummyDB` and the JWT `Key`, `Issuer`, and `Audience` values using local configuration or environment variables. To share the hybrid cache across API instances, also configure `ConnectionStrings:Redis`; without it, cached entries are process-local. Do not commit production secrets.
 2. From this project directory, apply the EF Core migrations:
 
    ```sh

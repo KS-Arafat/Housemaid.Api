@@ -2,12 +2,14 @@ using System.Security.Claims;
 using Housemaid.api.Constants;
 using Housemaid.api.Data;
 using Housemaid.api.DTO;
+using Housemaid.api.Infrastructure;
 using Housemaid.api.Models;
 using Housemaid.api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.EntityFrameworkCore;
 
 namespace Housemaid.api.Controllers;
@@ -15,7 +17,10 @@ namespace Housemaid.api.Controllers;
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [Route("api/[controller]")]
 [ApiController]
-public class ApartmentController(AppDbContext dbContext, IPropertyAccessService propertyAccess) : ControllerBase
+public class ApartmentController(
+    AppDbContext dbContext,
+    IPropertyAccessService propertyAccess,
+    HybridCache cache) : ControllerBase
 {
     [HttpGet("apartment-list/{houseId:Guid}")]
     public async Task<ActionResult> GetAllApartments(Guid houseId)
@@ -32,23 +37,25 @@ public class ApartmentController(AppDbContext dbContext, IPropertyAccessService 
         if (building is null)
             return NotFound("Building Doesn't Exist");
 
-        var apartmentList = await dbContext.Apartments
-            .AsNoTracking()
-            .Where(apartment => apartment.HouseId == houseId)
-            .Select(apartment => new
-            {
-                apartment.ApartmentId,
-                apartment.HouseId,
-                apartment.TenantId,
-                apartment.UnitNo,
-                apartment.Floor,
-                apartment.Bedrooms,
-                apartment.Bathrooms,
-                apartment.Area,
-                apartment.Status,
-                apartment.Details
-            })
-            .ToListAsync();
+        var apartmentList = await cache.GetOrCreateAsync(
+            PropertyCacheTags.ApartmentListKey(userId, houseId),
+            async cancellationToken => await dbContext.Apartments
+                .AsNoTracking()
+                .Where(apartment => apartment.HouseId == houseId)
+                .Select(apartment => new ApartmentListItemDto(
+                    apartment.ApartmentId,
+                    apartment.HouseId,
+                    apartment.TenantId,
+                    apartment.UnitNo,
+                    apartment.Floor,
+                    apartment.Bedrooms,
+                    apartment.Bathrooms,
+                    apartment.Area,
+                    apartment.Status,
+                    apartment.Details))
+                .ToListAsync(cancellationToken),
+            tags: [PropertyCacheTags.OwnerApartments(userId)],
+            cancellationToken: HttpContext.RequestAborted);
 
         return Ok(apartmentList);
     }
@@ -83,6 +90,7 @@ public class ApartmentController(AppDbContext dbContext, IPropertyAccessService 
 
         dbContext.Apartments.AddRange(newApartments);
         await dbContext.SaveChangesAsync();
+        await cache.RemoveByTagAsync(PropertyCacheTags.OwnerApartments(userId), CancellationToken.None);
 
         return CreatedAtAction(
             nameof(GetAllApartments),
@@ -127,6 +135,7 @@ public class ApartmentController(AppDbContext dbContext, IPropertyAccessService 
 
         apartment.Tenant = tenant;
         await dbContext.SaveChangesAsync();
+        await cache.RemoveByTagAsync(PropertyCacheTags.OwnerApartments(ownerId), CancellationToken.None);
 
         return Ok(new
         {
@@ -157,6 +166,7 @@ public class ApartmentController(AppDbContext dbContext, IPropertyAccessService 
         apartment.TenantId = null;
 
         await dbContext.SaveChangesAsync();
+        await cache.RemoveByTagAsync(PropertyCacheTags.OwnerApartments(ownerId), CancellationToken.None);
         return NoContent();
     }
 
@@ -181,6 +191,7 @@ public class ApartmentController(AppDbContext dbContext, IPropertyAccessService 
 
         dbContext.Apartments.Remove(apartment);
         await dbContext.SaveChangesAsync();
+        await cache.RemoveByTagAsync(PropertyCacheTags.OwnerApartments(ownerId), CancellationToken.None);
 
         return NoContent();
     }
